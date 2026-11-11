@@ -11,11 +11,18 @@
   "scripts": {
     "test": "node --test \"test/*.test.ts\"",
     "demo": "node src/demo.ts",
-    "check": "tsc --noEmit"
+    "check": "tsc --noEmit",
+    "build:contract": "node scripts/build-contract.ts",
+    "test:contract": "node scripts/test-contract.ts",
+    "sandbox": "node sandbox/run.ts",
+    "verify": "node src/verify-cli.ts",
+    "testnet:deploy": "node scripts/testnet-deploy.ts"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",
     "fast-check": "^4.10.2",
+    "near-api-js": "^5.1.0",
+    "near-workspaces": "^5.0.0",
     "typescript": "^7.0.2"
   }
 }

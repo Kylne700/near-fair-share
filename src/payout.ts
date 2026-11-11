@@ -13,8 +13,8 @@ export function toAmounts(shares: readonly number[], pot: bigint): bigint[] {
     total += s;
   }
   if (Math.abs(total - 1) > 1e-9) throw new RangeError(`shares must sum to 1 (got ${total})`);
-  // 2^53 fixed point is exact for any double in [0,1]; weights then divide the pot exactly in bigint
-  const w = shares.map((s) => BigInt(Math.round(s * 2 ** 53)));
+  // Decimal grid 10^-12 (same as contract/src/rule.rs): a clean split like 40/30/20/10 divides the pot exactly, in bigint
+  const w = shares.map((s) => BigInt(Math.floor(s * 1e12 + 0.5)));
   const sumW = w.reduce((a, b) => a + b, 0n);
   const amounts = w.map((wi) => (pot * wi) / sumW);
   const rem = w.map((wi) => (pot * wi) % sumW);
