@@ -5,17 +5,18 @@ import { test } from "node:test";
 import { checkRound, commitHash, proposalDescription, shareBits, splitHash, transferKind } from "../src/chain.ts";
 import type { ChainData, DaoProposal } from "../src/chain.ts";
 import { toAmounts, YOCTO_PER_NEAR as NEAR } from "../src/payout.ts";
-import { fairShare } from "../src/rule.ts";
+import { fairShare, neutralRow } from "../src/rule.ts";
 
 const TRUTH = [40, 30, 20, 10];
 const rows = TRUTH.map((_, k) => TRUTH.map((v, j) => (j === k ? 0 : v)));
 const members = ["a.near", "b.near", "c.near", "d.near"];
 
-/** What the contract and the DAO would hold for an honest round "r1". */
-function honest(pot = 10n * NEAR): ChainData {
+/** What the contract and the DAO would hold for an honest round "r1". `silent` = a member who committed and never revealed. */
+function honest(pot = 10n * NEAR, silent?: number): ChainData {
   const salts = members.map((_, i) => `salt${i}`);
   const commits = members.map((m, i) => commitHash("r1", m, rows[i], salts[i]));
-  const shares = fairShare(rows);
+  const used = rows.map((r, i) => (i === silent ? neutralRow(4, i) : r));
+  const shares = fairShare(used);
   const share_bits = shares.map(shareBits);
   const amounts = toAmounts(shares, pot);
   const hash = splitHash("r1", pot, members, share_bits, amounts);
@@ -24,9 +25,9 @@ function honest(pot = 10n * NEAR): ChainData {
     if (amounts[i] > 0n) proposals.push({ id: proposals.length, proposer: "relay.near", description: proposalDescription("r1", hash, m), kind: { Transfer: { ...transferKind(m, amounts[i]).Transfer, msg: null } }, status: "Approved" });
   });
   return {
-    round: { round_id: "r1", creator: "relay.near", dao: "dao.near", pot: pot.toString(), members, commit_until_ms: "1", reveal_until_ms: "2", status: "final", commits, revealed: members.map(() => true) },
+    round: { round_id: "r1", creator: "relay.near", dao: "dao.near", pot: pot.toString(), bond: "1000", members, commit_until_ms: "1", reveal_until_ms: "2", status: "final", commits, revealed: members.map((_, i) => i !== silent) },
     split: { round_id: "r1", members, pot: pot.toString(), share_bits, amounts: amounts.map(String), hash },
-    reveals: members.map((m, i) => ({ member: m, commit: commits[i], ratings: rows[i], salt: salts[i] })),
+    reveals: members.map((m, i) => ({ member: m, commit: commits[i], revealed: i !== silent, ratings: used[i], salt: i === silent ? "" : salts[i] })),
     proposals,
   };
 }
@@ -38,6 +39,41 @@ test("honest data: MATCH, with every check ok", () => {
   assert.equal(r.match, true);
   assert.equal(r.checks.length, 6);
   assert.deepEqual(r.checks.filter((c) => !c.ok), []);
+});
+
+test("a member who committed and never revealed: MATCH with the neutral row, and the bond is reported as forfeited", () => {
+  const r = checkRound(honest(10n * NEAR, 3));
+  assert.equal(r.match, true);
+  assert.match(r.checks[1].detail, /^3 of 4; bond forfeited by d\.near$/);
+  // a member who never committed has no bond to lose
+  const d = honest(10n * NEAR, 3);
+  d.round.commits[3] = null;
+  d.reveals![3].commit = null;
+  assert.match(checkRound(d).checks[1].detail, /never committed: d\.near/);
+  assert.equal(checkRound(d).match, true);
+});
+
+test("a withholder's row that is not the neutral row, or a revealed flag that disagrees with the round, is caught", () => {
+  const name = "every reveal matches its commit (sha256 recomputed)";
+  const d = clone(honest(10n * NEAR, 3));
+  d.reveals![3].ratings = [90, 5, 5, 0];
+  assert.ok(failing(d).includes(name));
+  const e = clone(honest(10n * NEAR, 3));
+  e.round.revealed[3] = true;
+  assert.ok(failing(e).includes(name));
+  const f = clone(honest());
+  f.reveals![0].revealed = false;
+  assert.ok(failing(f).includes(name));
+});
+
+test("the DAO code hash must equal the vendored wasm's, when both are given", () => {
+  const name = "the DAO runs the vendored official Sputnik v2 wasm (code hash)";
+  const d = clone(honest());
+  d.daoCodeHash = d.vendoredCodeHash = "6R4hGyn9tZZpgnoUNeyd71cYm9QJqG7h9XQUpSbqGzWJ";
+  assert.equal(checkRound(d).match, true);
+  assert.equal(checkRound(d).checks.at(-1)!.name, name);
+  d.daoCodeHash = "11111111111111111111111111111111";
+  assert.deepEqual(failing(d), [name]);
 });
 
 test("honest data before any DAO proposal exists: MATCH on the split alone", () => {
@@ -124,7 +160,7 @@ test("a round that is not final has nothing to verify", () => {
   const d = clone(honest());
   d.split = null;
   d.reveals = null;
-  d.round.status = "reveal";
+  d.round.status = "expired";
   const r = checkRound(d);
   assert.equal(r.match, false);
   assert.equal(r.checks.length, 1);

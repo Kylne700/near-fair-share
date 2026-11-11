@@ -1,7 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fc from "fast-check";
-import { fairShare } from "../src/rule.ts";
+import { fairShare, neutralRow } from "../src/rule.ts";
+import { toAmounts } from "../src/payout.ts";
 import type { Reports } from "../src/rule.ts";
 
 // n members, integer weights 1..1000 for every cell except the diagonal (0); integers keep ratios finite
@@ -63,4 +64,28 @@ test("input errors: n < 4, non-square, self-rating, non-positive or non-finite r
   for (const bad of [0, -1, NaN, Infinity]) {
     assert.throws(() => fairShare(ok.map((r, k) => (k === 1 ? [1, 0, bad, 1] : r))), /positive finite/);
   }
+});
+
+test("withholding gains nothing: the neutral row never changes the withholder's own share, and the split stays valid", () => {
+  const pot = 10n * 10n ** 24n;
+  const arb = profile.chain((p) => fc.tuple(fc.constant(p), fc.nat(p.length - 1)));
+  fc.assert(
+    fc.property(arb, ([p, k]) => {
+      const q: Reports = p.map((row, i) => (i === k ? neutralRow(p.length, k) : row));
+      const s = fairShare(q);
+      assert.equal(s[k], fairShare(p)[k]); // bit for bit
+      assert.ok(Math.abs(s.reduce((a, b) => a + b, 0) - 1) < 1e-9 && s.every((v) => v >= 0));
+      assert.equal(toAmounts(s, pot).reduce((a, b) => a + b, 0n), pot);
+    }),
+    { numRuns: 9000 },
+  );
+});
+
+test("everybody silent: the all-neutral profile splits equally; one silent member in a consensual round leaves 3 of 4 shares near the truth", () => {
+  for (const n of [4, 7, 12]) fairShare(Array.from({ length: n }, (_, k) => neutralRow(n, k))).forEach((s) => assert.ok(Math.abs(s - 1 / n) < 1e-12));
+  const t = [40, 30, 20, 10];
+  const rows = t.map((_, k) => t.map((v, j) => (j === k ? 0 : v)));
+  const s = fairShare(rows.map((r, k) => (k === 3 ? neutralRow(4, 3) : r)));
+  assert.ok(Math.abs(s[3] - 0.1) < 1e-12, "the silent member keeps their 10%");
+  assert.ok(s[0] > s[1] && s[1] > s[2], "the order of the others survives");
 });

@@ -1,12 +1,13 @@
 // npm run sandbox [-- --keep]
 // Starts a local NEAR node (nothing touches a real network), deploys the Fair Share contract and the official Sputnik DAO v2,
-// plays two rounds with 4 members and a 10 NEAR pot, pays them out through the DAO, and checks the balances and `verify`.
+// plays four rounds with 4 members and a 10 NEAR pot, pays them out through the DAO, and checks the balances and `verify`.
 // With --keep the node stays up after the run so you can try `npm run verify -- consensual` in another terminal (Ctrl-C stops it).
 import assert from "node:assert/strict";
 import { rmSync, writeFileSync } from "node:fs";
 import { bitsToShare, checkRound } from "../src/chain.ts";
+import { fairShare, neutralRow } from "../src/rule.ts";
 import { loadRound } from "../src/rpc.ts";
-import { NEAR, commit, commitAll, createRound, dLiesRows, failedWith, payOut, reveal, runRound, settle, startWorld, truthfulRows } from "./harness.ts";
+import { NEAR, ROUND_BOND, balanceOf, commit, commitAll, createRound, dLiesRows, failedWith, finalize, payOut, reveal, revealAll, runRound, settle, startWorld, truthfulRows, waitUntilChainPast } from "./harness.ts";
 import type { World } from "./harness.ts";
 
 const keep = process.argv.includes("--keep");
@@ -66,9 +67,32 @@ try {
   assert.ok(await view("get_split", { round_id: "guard" }));
   say("   after the last honest reveal the split exists");
 
+  heading(`4. ${D} sees the other three reveal and stays silent`);
+  await createRound(w, "withhold", 10n * NEAR, { commitMs: 10_000, revealMs: 24_000 });
+  const { reveal_until_ms } = await view<{ reveal_until_ms: string }>("get_round", { round_id: "withhold" });
+  const rows4 = truthfulRows();
+  const salts4 = await commitAll(w, "withhold", w.team, rows4);
+  await revealAll(w, "withhold", w.team.slice(0, 3), rows4, salts4);
+  assert.equal(await view("get_split", { round_id: "withhold" }), null);
+  say(`   ${A}/${B}/${C} revealed and got their bond back; get_split is still null while ${D} could still reveal`);
+  await waitUntilChainPast(w, Number(reveal_until_ms));
+  await settle(w);
+  const daoBefore = await balanceOf(w.dao);
+  assert.ok(failedWith(await reveal(w, "withhold", w.team[3], rows4[3], salts4[3]), "ERR_REVEAL_CLOSED"));
+  assert.ok((await finalize(w, "withhold")).succeeded);
+  await settle(w);
+  const forfeited = (await balanceOf(w.dao)) - daoBefore;
+  const r4 = (await view<{ share_bits: string[]; amounts: string[] }>("get_split", { round_id: "withhold" }));
+  say(`   anyone can finalize after the reveal deadline: bond ${near(forfeited)} NEAR went to the DAO, split ${r4.share_bits.map(pct).join(" / ")}`);
+  assert.equal(forfeited, ROUND_BOND);
+  assert.deepEqual(r4.share_bits.map(bitsToShare), fairShare(rows4.map((r, k) => (k === 3 ? neutralRow(4, 3) : r))));
+  assert.equal(bitsToShare(r4.share_bits[3]), fairShare(rows4)[3]);
+  say(`   ${D}'s own share is the same as if ${D} had revealed (the rule never reads your own row): silence only costs the bond`);
+  await verify(w, "withhold");
+
   say("\nsandbox: all checks passed");
   if (keep) {
-    writeFileSync(lastRun, JSON.stringify({ rpc: w.rpc, contract: w.contract.accountId, dao: w.dao.accountId, rounds: ["consensual", "d-lies", "guard"] }));
+    writeFileSync(lastRun, JSON.stringify({ rpc: w.rpc, contract: w.contract.accountId, dao: w.dao.accountId, rounds: ["consensual", "d-lies", "guard", "withhold"] }));
     say(`\nnode kept up at ${w.rpc}. In another terminal:  npm run verify -- consensual   (Ctrl-C here stops the node)`);
     await new Promise<void>((done) => ["SIGINT", "SIGTERM"].forEach((s) => process.once(s, () => done())));
   }

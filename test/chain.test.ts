@@ -3,9 +3,9 @@
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import { bitsToShare, checkRound } from "../src/chain.ts";
-import { fairShare } from "../src/rule.ts";
+import { fairShare, neutralRow } from "../src/rule.ts";
 import { loadRound } from "../src/rpc.ts";
-import { NEAR, commit, commitAll, createRound, dLiesRows, failedWith, payOut, reveal, revealAll, runRound, send, settle, startWorld, truthfulRows, chainNowMs } from "../sandbox/harness.ts";
+import { NEAR, ROUND_BOND, balanceOf, chainNowMs, commit, commitAll, createRound, dLiesRows, failedWith, finalize, payOut, reveal, revealAll, runRound, send, settle, startWorld, truthfulRows, waitUntilChainPast } from "../sandbox/harness.ts";
 import type { World } from "../sandbox/harness.ts";
 import type { SplitView } from "../src/chain.ts";
 
@@ -18,10 +18,7 @@ after(async () => {
 });
 
 const verify = async (round: string) => (await settle(w), checkRound(await loadRound(w.rpc, w.contract.accountId, round)));
-const pause = (ms: number) => new Promise((r) => setTimeout(r, ms));
-async function waitUntilChainPast(ms: number) {
-  while ((await chainNowMs(w)) <= ms) await pause(500);
-}
+const roundView = async (id: string) => (await w.contract.view("get_round", { round_id: id })) as { status: string; revealed: boolean[]; commits: (string | null)[]; reveal_until_ms: string; commit_until_ms: string };
 
 test("consensual 40/30/20/10 on a 10 NEAR pot: stored split and DAO payout are exact", async () => {
   const { reveals, split } = await runRound(w, "consensual", truthfulRows(), 10n * NEAR);
@@ -40,7 +37,8 @@ test("consensual 40/30/20/10 on a 10 NEAR pot: stored split and DAO payout are e
 
   const { match, checks } = await verify("consensual");
   assert.ok(match, JSON.stringify(checks.filter((c) => !c.ok)));
-  assert.match(checks.at(-1)!.detail, /4 Transfer proposals, 4 executed/);
+  assert.match(checks.find((c) => c.name === "DAO proposals match the stored split")!.detail, /4 Transfer proposals, 4 executed/);
+  assert.ok(checks.at(-1)!.name.includes("code hash") && checks.at(-1)!.ok, "the DAO runs exactly the vendored wasm");
 });
 
 test("D lies (rates A 90 / B 5 / C 5): D keeps 10.0% and the amounts still add up", async () => {
@@ -94,7 +92,9 @@ test("nothing can be revealed or read before every member has committed; wrong c
   assert.ok(failedWith(await reveal(w, "early", alice, rows[0], salt), "ERR_COMMIT_PHASE_OPEN"));
   assert.ok(failedWith((await commit(w, "early", alice, rows[0])).r, "ERR_ALREADY_COMMITTED"));
   assert.ok(failedWith((await commit(w, "early", w.relay, rows[0])).r, "ERR_NOT_A_MEMBER"));
-  assert.ok(failedWith(await send(w, bob, w.contract, "commit", { round_id: "early", commitment: "not-a-hash" }, "commit bad"), "ERR_BAD_COMMITMENT"));
+  assert.ok(failedWith(await send(w, bob, w.contract, "commit", { round_id: "early", commitment: "not-a-hash" }, "commit bad", ROUND_BOND), "ERR_BAD_COMMITMENT"));
+  assert.ok(failedWith((await commit(w, "early", bob, rows[1], "ab", 0n)).r, "ERR_BOND"));
+  assert.ok(failedWith((await commit(w, "early", bob, rows[1], "ab", ROUND_BOND + 1n)).r, "ERR_BOND"));
   assert.equal(await w.contract.view("get_split", { round_id: "early" }), null);
   await assert.rejects(w.contract.view("get_reveals", { round_id: "early" }), /ERR_NOT_FINAL/);
   const view = (await w.contract.view("get_round", { round_id: "early" })) as { status: string; commits: (string | null)[] };
@@ -107,40 +107,76 @@ test("nothing can be revealed or read before every member has committed; wrong c
 test("create_round refuses fewer than 4 members, duplicates and an empty pot", async () => {
   const names = w.team.map((a) => a.accountId);
   const now = await chainNowMs(w);
-  const base = { dao: w.dao.accountId, pot: NEAR.toString(), members: names, commit_until_ms: String(now + 60_000), reveal_until_ms: String(now + 120_000) };
+  const base = { dao: w.dao.accountId, pot: NEAR.toString(), bond: ROUND_BOND.toString(), members: names, commit_until_ms: String(now + 60_000), reveal_until_ms: String(now + 120_000) };
   const call = (round_id: string, over: object) => send(w, w.relay, w.contract, "create_round", { round_id, ...base, ...over }, `create_round ${round_id}`);
   assert.ok(failedWith(await call("few", { members: names.slice(0, 3) }), "ERR_MEMBER_COUNT"));
   assert.ok(failedWith(await call("dup", { members: [names[0], names[0], names[2], names[3]] }), "ERR_DUPLICATE_MEMBER"));
   assert.ok(failedWith(await call("zero", { pot: "0" }), "ERR_ZERO_POT"));
+  assert.ok(failedWith(await call("nobond", { bond: "0" }), "ERR_ZERO_BOND"));
   assert.ok(failedWith(await call("order", { reveal_until_ms: String(now + 30_000) }), "ERR_BAD_DEADLINES"));
 });
 
-test("a missed commit deadline aborts the round: no late commit, no reveal, no split", async () => {
+test("a member who never commits cannot stop the round: reveals open at the commit deadline, their row is the neutral one", async () => {
   const [alice, bob, carol, dave] = w.team;
   const rows = truthfulRows();
-  await createRound(w, "late-commit", 10n * NEAR, { commitMs: 12_000, revealMs: 24_000 });
-  const deadline = Number(((await w.contract.view("get_round", { round_id: "late-commit" })) as { commit_until_ms: string }).commit_until_ms);
+  await createRound(w, "late-commit", 10n * NEAR, { commitMs: 12_000, revealMs: 28_000 });
+  const v0 = await roundView("late-commit");
   const salts = await Promise.all([alice, bob, carol].map((a, i) => commit(w, "late-commit", a, rows[i]))); // dave never commits
   assert.ok(salts.every((s) => s.r.succeeded), "the three commits must land before the 12 s deadline (slow machine?)");
-  await waitUntilChainPast(deadline);
+  assert.ok(failedWith(await reveal(w, "late-commit", alice, rows[0], salts[0].salt), "ERR_COMMIT_PHASE_OPEN"), "still waiting for dave's commit");
+  await waitUntilChainPast(w, Number(v0.commit_until_ms));
   assert.ok(failedWith((await commit(w, "late-commit", dave, rows[3])).r, "ERR_COMMIT_CLOSED"));
-  assert.ok(failedWith(await reveal(w, "late-commit", alice, rows[0], salts[0].salt), "ERR_COMMIT_PHASE_OPEN"));
-  assert.equal(((await w.contract.view("get_round", { round_id: "late-commit" })) as { status: string }).status, "aborted");
-  assert.equal(await w.contract.view("get_split", { round_id: "late-commit" }), null);
-  assert.equal((await verify("late-commit")).match, false);
+  assert.ok(failedWith(await reveal(w, "late-commit", dave, rows[3], "00"), "ERR_NOT_COMMITTED"));
+  assert.equal((await roundView("late-commit")).status, "reveal");
+  for (const [i, a] of [alice, bob, carol].entries()) assert.ok((await reveal(w, "late-commit", a, rows[i], salts[i].salt)).succeeded, "reveals must land before the 28 s deadline");
+  assert.equal(await w.contract.view("get_split", { round_id: "late-commit" }), null, "the round waits for dave until the reveal deadline");
+  await waitUntilChainPast(w, Number(v0.reveal_until_ms));
+  assert.equal((await roundView("late-commit")).status, "expired");
+  const daoBefore = await balanceOf(w.dao);
+  assert.ok((await finalize(w, "late-commit")).succeeded);
+  await settle(w);
+  assert.equal(await balanceOf(w.dao), daoBefore, "dave paid no bond, so none is forfeited");
+  const split = (await w.contract.view("get_split", { round_id: "late-commit" })) as SplitView;
+  assert.deepEqual(split.share_bits.map(bitsToShare), fairShare(rows.map((r, k) => (k === 3 ? neutralRow(4, 3) : r))));
+  const { match, checks } = await verify("late-commit");
+  assert.ok(match, JSON.stringify(checks.filter((c) => !c.ok)));
+  assert.match(checks[1].detail, /3 of 4; never committed: /);
 });
 
-test("a missed reveal deadline aborts the round: the late reveal is refused and no split is ever stored", async () => {
+test("a member who commits and never reveals loses the bond, the round still finalizes, and their own share is unchanged", async () => {
   const [alice, bob, carol, dave] = w.team;
   const rows = truthfulRows();
-  await createRound(w, "late-reveal", 10n * NEAR, { commitMs: 10_000, revealMs: 22_000 });
-  const deadline = Number(((await w.contract.view("get_round", { round_id: "late-reveal" })) as { reveal_until_ms: string }).reveal_until_ms);
-  const salts = await commitAll(w, "late-reveal", w.team, rows);
-  const early = await revealAll(w, "late-reveal", [alice, bob, carol], rows, salts); // dave stays silent
-  assert.ok(early.every((r) => r.succeeded), "reveals must land before the 22 s deadline (slow machine?)");
-  await waitUntilChainPast(deadline);
-  assert.ok(failedWith(await reveal(w, "late-reveal", dave, rows[3], salts[3]), "ERR_REVEAL_CLOSED"));
-  assert.equal(((await w.contract.view("get_round", { round_id: "late-reveal" })) as { status: string }).status, "aborted");
-  assert.equal(await w.contract.view("get_split", { round_id: "late-reveal" }), null);
-  await assert.rejects(w.contract.view("get_reveals", { round_id: "late-reveal" }), /ERR_NOT_FINAL/);
+  await createRound(w, "withhold", 10n * NEAR, { commitMs: 10_000, revealMs: 30_000 });
+  const v0 = await roundView("withhold");
+  const salts = await commitAll(w, "withhold", w.team, rows);
+  await settle(w); // gas refunds of the commits land after the call returns
+  const before = await Promise.all([alice, bob, carol].map(balanceOf));
+  const early = await revealAll(w, "withhold", [alice, bob, carol], rows, salts); // dave sees all three and stays silent
+  assert.ok(failedWith(await finalize(w, "withhold"), "ERR_REVEAL_OPEN"), "nobody can close the round early (reveals must land before the 30 s deadline, slow machine?)");
+  assert.ok(early.every((r) => r.succeeded));
+  assert.equal(await w.contract.view("get_split", { round_id: "withhold" }), null);
+  await settle(w);
+  const after = await Promise.all([alice, bob, carol].map(balanceOf));
+  after.forEach((a, i) => assert.ok(a - before[i] > ROUND_BOND - NEAR / 100n && a - before[i] < ROUND_BOND, `the bond of member ${i} came back (minus gas): ${a - before[i]}`));
+  await waitUntilChainPast(w, Number(v0.reveal_until_ms));
+  assert.ok(failedWith(await reveal(w, "withhold", dave, rows[3], salts[3]), "ERR_REVEAL_CLOSED"), "too late");
+
+  await settle(w);
+  const daoBefore = await balanceOf(w.dao);
+  assert.ok((await finalize(w, "withhold")).succeeded, "anyone can finalize, here the non-member relay");
+  await settle(w);
+  assert.equal((await balanceOf(w.dao)) - daoBefore, ROUND_BOND, "dave's bond went to the DAO, exactly");
+  assert.ok(failedWith(await finalize(w, "withhold"), "ERR_ALREADY_FINAL"));
+
+  const split = (await w.contract.view("get_split", { round_id: "withhold" })) as SplitView;
+  const shares = split.share_bits.map(bitsToShare);
+  assert.deepEqual(shares, fairShare(rows.map((r, k) => (k === 3 ? neutralRow(4, 3) : r))));
+  assert.equal(shares[3], fairShare(rows)[3], "dave's own share is bit-identical to what revealing would have given");
+  assert.equal(split.amounts.map(BigInt).reduce((a, b) => a + b), 10n * NEAR);
+  const { match, checks } = await verify("withhold");
+  assert.ok(match, JSON.stringify(checks.filter((c) => !c.ok)));
+  assert.match(checks[1].detail, /3 of 4; bond forfeited by /);
+  const pay = await payOut(w, "withhold", split); // the DAO still pays everybody, dave's share included
+  assert.deepEqual(pay.gained, pay.amounts);
+  assert.ok((await verify("withhold")).match);
 });

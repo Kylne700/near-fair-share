@@ -1,7 +1,7 @@
 // Everything the NEAR part needs that does not talk to a node: hashes, Sputnik DAO payloads, and the one function
 // (checkRound) that decides MATCH or MISMATCH. The sandbox tests, `npm run verify` and the unit tests all use it.
 import { createHash } from "node:crypto";
-import { fairShare } from "./rule.ts";
+import { fairShare, neutralRow } from "./rule.ts";
 import { toAmounts, YOCTO_PER_NEAR } from "./payout.ts";
 
 export interface RoundView {
@@ -9,10 +9,11 @@ export interface RoundView {
   creator: string;
   dao: string;
   pot: string;
+  bond: string;
   members: string[];
   commit_until_ms: string;
   reveal_until_ms: string;
-  status: "commit" | "reveal" | "final" | "aborted";
+  status: "commit" | "reveal" | "expired" | "final";
   commits: (string | null)[];
   revealed: boolean[];
 }
@@ -26,7 +27,9 @@ export interface SplitView {
 }
 export interface RevealView {
   member: string;
-  commit: string;
+  commit: string | null;
+  /** false: no valid reveal, ratings is the neutral row the split used */
+  revealed: boolean;
   ratings: number[];
   salt: string;
 }
@@ -42,6 +45,9 @@ export interface ChainData {
   split: SplitView | null;
   reveals: RevealView[] | null;
   proposals: DaoProposal[];
+  /** base58 sha256 of the code on the DAO account, and of the vendored official wasm: both set => one more check */
+  daoCodeHash?: string;
+  vendoredCodeHash?: string;
 }
 export interface Check {
   name: string;
@@ -54,6 +60,18 @@ const dv = new DataView(new ArrayBuffer(8));
 /** IEEE-754 bits of a double as 16 hex digits (what the contract stores; no float formatting involved). */
 export const shareBits = (x: number) => (dv.setFloat64(0, x), dv.getBigUint64(0).toString(16).padStart(16, "0"));
 export const bitsToShare = (hex: string) => (dv.setBigUint64(0, BigInt("0x" + hex)), dv.getFloat64(0));
+
+const B58 = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+/** NEAR's code_hash notation: base58 of the sha256 bytes. */
+export function base58(bytes: Uint8Array): string {
+  let n = bytes.reduce((a, b) => (a << 8n) | BigInt(b), 0n);
+  let out = "";
+  for (; n > 0n; n /= 58n) out = B58[Number(n % 58n)] + out;
+  let zeros = 0;
+  while (zeros < bytes.length && bytes[zeros] === 0) zeros++;
+  return "1".repeat(zeros) + out;
+}
+export const wasmCodeHash = (wasm: Uint8Array) => base58(createHash("sha256").update(wasm).digest());
 
 /** What a member commits to: sha256 of this exact text (contract/src/lib.rs commit_hash). */
 export const commitHash = (roundId: string, account: string, ratings: readonly number[], salt: string) =>
@@ -101,11 +119,17 @@ export function checkRound(d: ChainData): { match: boolean; checks: Check[] } {
   const pot = BigInt(round.pot);
   const members = round.members;
 
+  // a member without a valid reveal has the neutral row (and, if committed, lost the bond); everybody else must open their commit
   const badCommits = members.filter((m, i) => {
     const r = reveals[i];
-    return !r || r.member !== m || r.commit !== round.commits[i] || commitHash(round.round_id, m, r.ratings, r.salt) !== r.commit;
+    if (!r || r.member !== m || r.commit !== round.commits[i] || r.revealed !== round.revealed[i]) return true;
+    if (!r.revealed) return r.ratings.join() !== neutralRow(members.length, i).join();
+    return commitHash(round.round_id, m, r.ratings, r.salt) !== r.commit;
   });
-  add("every reveal matches its commit (sha256 recomputed)", badCommits.length === 0, badCommits.length ? `bad: ${badCommits.join(", ")}` : `${members.length} of ${members.length}`);
+  const forfeited = members.filter((_, i) => !round.revealed[i] && round.commits[i]);
+  const silent = members.filter((_, i) => !round.revealed[i] && !round.commits[i]);
+  const note = (forfeited.length ? `; bond forfeited by ${forfeited.join(", ")}` : "") + (silent.length ? `; never committed: ${silent.join(", ")}` : "");
+  add("every reveal matches its commit (sha256 recomputed)", badCommits.length === 0, badCommits.length ? `bad: ${badCommits.join(", ")}` : `${round.revealed.filter(Boolean).length} of ${members.length}${note}`);
 
   let shares: number[] = [];
   try {
@@ -156,5 +180,8 @@ export function checkRound(d: ChainData): { match: boolean; checks: Check[] } {
   const payees = amounts.filter((a) => a > 0n).length;
   if (mine.length === 0) add("DAO proposals match the stored split", true, "none created yet (split verified only)");
   else add("DAO proposals match the stored split", problems.length === 0, problems.length ? problems.join("; ") : `${payees} Transfer proposals, ${paid} executed (Approved)`);
+  if (d.daoCodeHash !== undefined && d.vendoredCodeHash !== undefined) {
+    add("the DAO runs the vendored official Sputnik v2 wasm (code hash)", d.daoCodeHash === d.vendoredCodeHash, d.daoCodeHash === d.vendoredCodeHash ? d.daoCodeHash : `DAO ${d.daoCodeHash} vendored ${d.vendoredCodeHash}`);
+  }
   return { match: checks.every((c) => c.ok), checks };
 }

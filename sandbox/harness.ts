@@ -12,6 +12,7 @@ export const CONTRACT_WASM = new URL("../contract/fair_share.wasm", import.meta.
 /** The official Sputnik DAO v2 wasm from near-daos/sputnik-dao-contract (see vendor/README.md); override with SPUTNIK_WASM. */
 export const SPUTNIK_WASM = process.env.SPUTNIK_WASM ?? new URL("../vendor/sputnikdao2.wasm", import.meta.url).pathname;
 export const BOND = NEAR / 100n; // 0.01 NEAR proposal bond
+export const ROUND_BOND = NEAR; // what each member pays at commit and gets back with a valid reveal
 const GAS = 100n * 10n ** 12n;
 
 // near-api-js prints each receipt's logs and failures itself; our own line per transaction carries the same information.
@@ -66,6 +67,13 @@ export async function chainNowMs(w: World): Promise<number> {
   return Math.floor(Number(BigInt(b.header.timestamp_nanosec) / 1_000_000n));
 }
 
+export const balanceOf = async (a: NearAccount) => BigInt((await a.balance()).total);
+
+/** Poll the chain's block time (deadlines are measured against it) until it is past `ms`. */
+export async function waitUntilChainPast(w: World, ms: number) {
+  while ((await chainNowMs(w)) <= ms) await new Promise((r) => setTimeout(r, 500));
+}
+
 /** Call and log "label | tx hash | ok/FAILED | Tgas". */
 export async function send(w: World, from: NearAccount, to: NearAccount, method: string, args: Record<string, unknown>, label: string, deposit = 0n) {
   const r = await from.callRaw(to, method, args, { gas: GAS, attachedDeposit: deposit });
@@ -86,14 +94,17 @@ export async function makeTeam(w: World, n: number, prefix = "m"): Promise<NearA
 export async function createRound(w: World, roundId: string, pot: bigint, o: { team?: NearAccount[]; commitMs?: number; revealMs?: number } = {}) {
   const now = await chainNowMs(w);
   const members = (o.team ?? w.team).map((a) => a.accountId);
-  return send(w, w.relay, w.contract, "create_round", { round_id: roundId, dao: w.dao.accountId, pot: pot.toString(), members, commit_until_ms: String(now + (o.commitMs ?? 600_000)), reveal_until_ms: String(now + (o.revealMs ?? 1_200_000)) }, `create_round ${roundId}`);
+  return send(w, w.relay, w.contract, "create_round", { round_id: roundId, dao: w.dao.accountId, pot: pot.toString(), bond: ROUND_BOND.toString(), members, commit_until_ms: String(now + (o.commitMs ?? 600_000)), reveal_until_ms: String(now + (o.revealMs ?? 1_200_000)) }, `create_round ${roundId}`);
 }
+
+/** Anyone (default: the non-member relay) closes a round whose reveal deadline has passed. */
+export const finalize = (w: World, roundId: string, from: NearAccount = w.relay) => send(w, from, w.contract, "finalize", { round_id: roundId }, `finalize ${roundId}`);
 
 export const newSalt = () => randomBytes(8).toString("hex");
 
 /** Member i seals rows[i]. Returns the salt, which the member keeps for the reveal. */
-export async function commit(w: World, roundId: string, who: NearAccount, ratings: number[], salt = newSalt()) {
-  const r = await send(w, who, w.contract, "commit", { round_id: roundId, commitment: commitHash(roundId, who.accountId, ratings, salt) }, `commit ${label(who)}`);
+export async function commit(w: World, roundId: string, who: NearAccount, ratings: number[], salt = newSalt(), deposit = ROUND_BOND) {
+  const r = await send(w, who, w.contract, "commit", { round_id: roundId, commitment: commitHash(roundId, who.accountId, ratings, salt) }, `commit ${label(who)}`, deposit);
   return { r, salt };
 }
 export async function reveal(w: World, roundId: string, who: NearAccount, ratings: number[], salt: string) {

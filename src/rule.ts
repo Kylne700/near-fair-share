@@ -7,6 +7,9 @@ export type Reports = readonly (readonly number[])[];
 
 export const MIN_MEMBERS = 4;
 
+/** The row of a member who sent no valid reveal: everybody else equal, 0 for themselves (the contract's fallback). */
+export const neutralRow = (n: number, k: number): number[] => Array.from({ length: n }, (_, j) => (j === k ? 0 : 1));
+
 /**
  * Returns each member's share of the pot (sums to 1). Member i's share never reads row i,
  * so what i reports about the others cannot change i's own share (impartiality).
