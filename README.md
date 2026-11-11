@@ -21,7 +21,7 @@ Members rate only the OTHER members (positive shares, normalised to sum 1). The 
 
 ## Try it
 
-1. Install: `npm ci` (needs Node 22.18 or newer; written and tested on Node 24, which runs the TypeScript files directly). See: it ends with `found 0 vulnerabilities`.
+1. Install: `npm ci` (needs Node 22.18 or newer; written and tested on Node 24, which runs the TypeScript files directly). `npm audit` then reports 15 findings (12 low, 2 high, 1 critical), all in the dev-only sandbox tools (`near-workspaces`, `near-sandbox` with an old `tar`, `near-api-js`); the project itself has no runtime dependencies.
 2. Test: `npm test` (about 3 minutes: 13 rule and payout tests, 10 tamper-detection tests, 7 tests against a local NEAR node). Expected end of the output: `tests 30`, `pass 30`, `fail 0`.
 3. Demo: `npm run demo`. Expected (D keeps 10.0% under Fair Share, whatever D writes):
 
