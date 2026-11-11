@@ -1,0 +1,4 @@
+# checked 2026-11-11T15:08:23.925Z by `npm run testnet -- links`
+d-lies.txt: 25 of 25 transactions found by the nearblocks testnet API with status success; explorer page HTTP answers: 25x403
+setup.txt: 3 of 3 transactions found by the nearblocks testnet API with status success; explorer page HTTP answers: 3x403
+withhold.txt: 25 of 25 transactions found by the nearblocks testnet API with status success; explorer page HTTP answers: 25x403
