@@ -1,0 +1,17 @@
+{
+  "network": "testnet",
+  "rpc": "https://test.rpc.fastnear.com",
+  "factory": "sputnikv2.testnet",
+  "contract": "fairshare-d3a-contract.testnet",
+  "dao": "fairshare-d3a-team.sputnikv2.testnet",
+  "relay": "fairshare-d3a-relay.testnet",
+  "members": [
+    "fairshare-d3a-alice.testnet",
+    "fairshare-d3a-bob.testnet",
+    "fairshare-d3a-carol.testnet",
+    "fairshare-d3a-dave.testnet"
+  ],
+  "contractCodeHash": "5CEKZwp4x6ZGSFx8i1sYRySDWTizf3m1W5nKsUemN9GM",
+  "daoCodeHash": "AA4nA45vauiac3jdVwJTzSdUP3oj2r1fDaPAb2mHdgcH",
+  "bond": "100000000000000000000000"
+}

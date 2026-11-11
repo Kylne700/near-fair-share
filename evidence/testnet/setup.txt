@@ -1,0 +1,8 @@
+# deploy 2026-11-11T14:51:02.588Z  contract wasm 5CEKZwp4x6ZGSFx8i1sYRySDWTizf3m1W5nKsUemN9GM (164719 bytes)  vendored sputnik wasm AA4nA45vauiac3jdVwJTzSdUP3oj2r1fDaPAb2mHdgcH
+deploy contract | fairshare-d3a-contract.testnet -> deploy_contract | 6SaTxwwm8HcLjA3r2yWqPhrBKs9fpqePZu7VaCs6xRJt | success | https://testnet.nearblocks.io/txns/6SaTxwwm8HcLjA3r2yWqPhrBKs9fpqePZu7VaCs6xRJt
+contract new | fairshare-d3a-contract.testnet -> fairshare-d3a-contract.testnet.new | DG1BaGCBHRKwfvhB7YjZMvPenVYApFhfobUEEGKkV69e | success | https://testnet.nearblocks.io/txns/DG1BaGCBHRKwfvhB7YjZMvPenVYApFhfobUEEGKkV69e
+factory create DAO, first try with 100 Tgas (failed: "Exceeded the prepaid gas", the 9 NEAR deposit came back; retried with 300 Tgas) | fairshare-d3a-relay.testnet -> sputnikv2.testnet.create | JBzGpRi4VcGSTj6L589bMvopRhQGzDMp2dFmKad6m4Gf | FAILED (expected, see line) | https://testnet.nearblocks.io/txns/JBzGpRi4VcGSTj6L589bMvopRhQGzDMp2dFmKad6m4Gf
+# deploy 2026-11-11T14:51:23.482Z  contract wasm 5CEKZwp4x6ZGSFx8i1sYRySDWTizf3m1W5nKsUemN9GM (164719 bytes)  vendored sputnik wasm AA4nA45vauiac3jdVwJTzSdUP3oj2r1fDaPAb2mHdgcH
+factory create DAO | fairshare-d3a-relay.testnet -> sputnikv2.testnet.create | 6qgqJyKXdwrn2iHQay4ouKAv8uTQXfazZj8uwDddzLNL | success | https://testnet.nearblocks.io/txns/6qgqJyKXdwrn2iHQay4ouKAv8uTQXfazZj8uwDddzLNL
+contract fairshare-d3a-contract.testnet code 5CEKZwp4x6ZGSFx8i1sYRySDWTizf3m1W5nKsUemN9GM
+dao fairshare-d3a-team.sputnikv2.testnet code AA4nA45vauiac3jdVwJTzSdUP3oj2r1fDaPAb2mHdgcH  = vendored vendor/sputnikdao2.wasm
