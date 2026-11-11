@@ -61,7 +61,7 @@ Try it (needs no account and no network; the first start downloads the NEAR sand
 Honest limits of the on-chain part:
 
 - Ratings are sealed only until the reveal. After the reveals they are public in the transaction arguments (the verify step needs them).
-- Staying silent is protected per member, not against groups: a silent member's own share is unchanged, but their row is replaced by the neutral one, which moves the other members' shares just as a lie about them would. With several silent members, each of them still cannot change their own share by being silent.
+- Staying silent is protected per member, not against groups: a silent member's own share is unchanged, but their row is replaced by the neutral one, which moves the other members' shares just as a lie about them would. Unlike a lie, which is committed blind, the last member to reveal chooses between the committed row and the neutral row after seeing every other row, so they can pick whichever hurts a rival more; this still cannot change their own share and costs the bond. With several silent members, each of them still cannot change their own share by being silent.
 - The contract holds no pot, only the bonds while a round runs. It pays storage for its rounds from its own balance (before a mainnet use it should take a deposit per round).
 - Collusion is not prevented (see below).
 - Float arithmetic runs on the real testnet runtime too: the split stored by the contract on testnet is bit-identical to `src/rule.ts` (`npm run verify` recomputes it). The DAO on testnet was created by the official factory `sputnikv2.testnet`, and its code hash equals `vendor/sputnikdao2.wasm`.
@@ -71,11 +71,11 @@ Honest limits of the on-chain part:
 
 Testnet only: free test tokens, nothing of value. Needs `npm ci` first and Node 22.18 or newer.
 
-1. Check the round recorded in this repo (no account, no key): `npm run verify -- d-lies`. Expected: seven `ok` lines (round is final, reveals match their commits, split recomputed bit for bit, amounts sum exactly to the pot, split hash, DAO proposals executed, DAO code hash equals `vendor/sputnikdao2.wasm`) and the last line `MATCH d-lies`. The same for the withholder round: `npm run verify -- withhold` (expected last line `MATCH withhold`).
+1. Check the round recorded in this repo (no account, no key): `npm run verify -- d-lies --rpc https://test.rpc.fastnear.com --contract fairshare-d3a-contract.testnet`. Expected: the line `reading contract fairshare-d3a-contract.testnet at https://test.rpc.fastnear.com`, seven `ok` lines (round is final, reveals match their commits, split recomputed bit for bit, amounts sum exactly to the pot, split hash, DAO proposals executed, DAO code hash equals `vendor/sputnikdao2.wasm`) and the last line `MATCH d-lies`. The same for the withholder round: `npm run verify -- withhold --rpc https://test.rpc.fastnear.com --contract fairshare-d3a-contract.testnet` (expected last line `MATCH withhold`; the second `ok` line reads `3 of 4; bond forfeited by fairshare-d3a-dave.testnet`). Without the two flags `verify` reads a kept local sandbox node if there is one (round ids `consensual`, `d-lies`, `withhold` exist there too), else the testnet deployment of `evidence/testnet/deployment.json`; the `reading ...` line says which one.
 2. Make six accounts and fund them from the testnet faucet: `NEAR_PREFIX=my-fs NEAR_KEYS_DIR=$HOME/.my-fs-keys npm run testnet -- accounts`. Keys are written with mode 600 into that folder and never printed. Expected: one line per account.
 3. Deploy the contract and create the team DAO with the official Sputnik v2 testnet factory `sputnikv2.testnet`: `NEAR_PREFIX=my-fs NEAR_KEYS_DIR=$HOME/.my-fs-keys npm run testnet -- deploy`. Expected: `success` lines with explorer links. (This overwrites `evidence/testnet/deployment.json`: run it in a copy of the repo.)
 4. Play a round (commit, reveal, split, DAO Transfer proposals, votes, payout, balances checked): `NEAR_KEYS_DIR=$HOME/.my-fs-keys npm run testnet -- round r1`, about 5 minutes. Add `--silent` to make the last member commit and never reveal. Expected: every transaction as `label | from -> call | hash | success | link`, written to `evidence/testnet/r1.txt`.
-5. Verify it from the chain: `npm run verify -- r1`. Expected: last line `MATCH r1`.
+5. Verify it from the chain: `npm run verify -- r1 --rpc https://test.rpc.fastnear.com --contract <your contract account>`. Expected: last line `MATCH r1`.
 
 ### The recorded run
 

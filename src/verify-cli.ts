@@ -23,6 +23,7 @@ try {
   process.exit(2);
 }
 const { match, checks } = result;
+console.log(`reading contract ${contract} at ${rpc}`);
 for (const c of checks) console.log(`${c.ok ? "ok  " : "FAIL"} ${c.name}: ${c.detail}`);
 console.log(match ? `MATCH ${roundId}` : `MISMATCH ${roundId}`);
 process.exit(match ? 0 : 1);
