@@ -1,0 +1,39 @@
+# round withhold on fairshare-d3a-contract.testnet, dao fairshare-d3a-team.sputnikv2.testnet, pot 1.000000 NEAR, bond 0.100000 NEAR, fairshare-d3a-dave.testnet commits and never reveals
+# RESUMED round withhold on fairshare-d3a-contract.testnet, dao fairshare-d3a-team.sputnikv2.testnet, pot 1.000000 NEAR, bond 0.100000 NEAR, fairshare-d3a-dave.testnet commits and never reveals
+create_round | fairshare-d3a-relay.testnet -> fairshare-d3a-contract.testnet.create_round | 253CkCYQkXzraGBMf5cYBaEecnQqAVtckFdmpJE2FELb | success | https://testnet.nearblocks.io/txns/253CkCYQkXzraGBMf5cYBaEecnQqAVtckFdmpJE2FELb
+commit bob | fairshare-d3a-bob.testnet -> fairshare-d3a-contract.testnet.commit | aqQob45DZGmVJMobout1NF4ePBbN2WhNdDssy42ySoF | success | https://testnet.nearblocks.io/txns/aqQob45DZGmVJMobout1NF4ePBbN2WhNdDssy42ySoF
+commit alice | fairshare-d3a-alice.testnet -> fairshare-d3a-contract.testnet.commit | Fj7Y67Cgfae3M5tzafGn6mZvNnv5Amx9K2k8dqBCHTrB | success | https://testnet.nearblocks.io/txns/Fj7Y67Cgfae3M5tzafGn6mZvNnv5Amx9K2k8dqBCHTrB
+commit carol | fairshare-d3a-carol.testnet -> fairshare-d3a-contract.testnet.commit | CA21cmeSKnPzMHcWoGH8Umm7n4vrQULwNoZjMeVdo6BE | success | https://testnet.nearblocks.io/txns/CA21cmeSKnPzMHcWoGH8Umm7n4vrQULwNoZjMeVdo6BE
+commit dave | fairshare-d3a-dave.testnet -> fairshare-d3a-contract.testnet.commit | 246p8FAj9c2hEe5CpVrQAq4bEq4T3j45cw8Bp8k5an2x | success | https://testnet.nearblocks.io/txns/246p8FAj9c2hEe5CpVrQAq4bEq4T3j45cw8Bp8k5an2x
+reveal carol | fairshare-d3a-carol.testnet -> fairshare-d3a-contract.testnet.reveal | HnWdVvCLLu5VkbiH7BtJcSc9wMZw2vouHsqFdvZwrhrE | success | https://testnet.nearblocks.io/txns/HnWdVvCLLu5VkbiH7BtJcSc9wMZw2vouHsqFdvZwrhrE
+reveal alice | fairshare-d3a-alice.testnet -> fairshare-d3a-contract.testnet.reveal | HQ8Phig65QPD8stxAVok8st8aVDHJzxrW5vSPtPLWCaL | success | https://testnet.nearblocks.io/txns/HQ8Phig65QPD8stxAVok8st8aVDHJzxrW5vSPtPLWCaL
+reveal bob | fairshare-d3a-bob.testnet -> fairshare-d3a-contract.testnet.reveal | 7owWF4ieP33kdU3MKpZJbJDCaXMFY4AVn7Q4jLRTM4pW | success | https://testnet.nearblocks.io/txns/7owWF4ieP33kdU3MKpZJbJDCaXMFY4AVn7Q4jLRTM4pW
+# fairshare-d3a-dave.testnet stays silent; waiting for the reveal deadline (2026-11-11T14:59:35.729Z)
+finalize (anyone) | fairshare-d3a-relay.testnet -> fairshare-d3a-contract.testnet.finalize | 42c4NHFX5YGVEWFXj376D1rNiWpbzW3KzkoNpBXaYmaf | success | https://testnet.nearblocks.io/txns/42c4NHFX5YGVEWFXj376D1rNiWpbzW3KzkoNpBXaYmaf
+# stored split (bit-identical to src/rule.ts): 35.4405% / 30.3709% / 24.1886% / 10.0000%  amounts 0.354405 / 0.303709 / 0.241886 / 0.100000 NEAR  hash 5ae305259eeca73e88a281035d4b711f7f361f61f764c49a72baaa3d99fbf112
+dao add_proposal -> alice | fairshare-d3a-relay.testnet -> fairshare-d3a-team.sputnikv2.testnet.add_proposal | AdN73occFg5m4Ha6GN7mEmu5Teh2rcDxsjRx8UErndbM | success | https://testnet.nearblocks.io/txns/AdN73occFg5m4Ha6GN7mEmu5Teh2rcDxsjRx8UErndbM
+dao VoteApprove #4 by alice | fairshare-d3a-alice.testnet -> fairshare-d3a-team.sputnikv2.testnet.act_proposal | 3tDYiago5kGdhKh8nCjsgxmkS9HhZXensaZ9zKhvjXRi | success | https://testnet.nearblocks.io/txns/3tDYiago5kGdhKh8nCjsgxmkS9HhZXensaZ9zKhvjXRi
+dao VoteApprove #4 by bob | fairshare-d3a-bob.testnet -> fairshare-d3a-team.sputnikv2.testnet.act_proposal | J3gC2ZvbPczakqwuv3CwFoQoEJUTDYrZ21Vf2Bp6RtPN | success | https://testnet.nearblocks.io/txns/J3gC2ZvbPczakqwuv3CwFoQoEJUTDYrZ21Vf2Bp6RtPN
+dao VoteApprove #4 by carol | fairshare-d3a-carol.testnet -> fairshare-d3a-team.sputnikv2.testnet.act_proposal | EfZZBkVayZpeWNypnaSKf9wAfQgeNAWvqSALdRBRDukH | success | https://testnet.nearblocks.io/txns/EfZZBkVayZpeWNypnaSKf9wAfQgeNAWvqSALdRBRDukH
+dao add_proposal -> bob | fairshare-d3a-relay.testnet -> fairshare-d3a-team.sputnikv2.testnet.add_proposal | EiMSQ6PnFsnUkH8ByauDHvwezwBVtTFNaGtL27juSG4c | success | https://testnet.nearblocks.io/txns/EiMSQ6PnFsnUkH8ByauDHvwezwBVtTFNaGtL27juSG4c
+dao VoteApprove #5 by alice | fairshare-d3a-alice.testnet -> fairshare-d3a-team.sputnikv2.testnet.act_proposal | 9qTxCKYkJfnVTMj9SyRscU6WLjPAqjZRnaPHvybCbnZj | success | https://testnet.nearblocks.io/txns/9qTxCKYkJfnVTMj9SyRscU6WLjPAqjZRnaPHvybCbnZj
+dao VoteApprove #5 by bob | fairshare-d3a-bob.testnet -> fairshare-d3a-team.sputnikv2.testnet.act_proposal | Hx414GKXu9BLSKfRvSWuKg5riVsrXrrY9WN1zKBvsuTs | success | https://testnet.nearblocks.io/txns/Hx414GKXu9BLSKfRvSWuKg5riVsrXrrY9WN1zKBvsuTs
+dao VoteApprove #5 by carol | fairshare-d3a-carol.testnet -> fairshare-d3a-team.sputnikv2.testnet.act_proposal | FuQW3vWPqvZF6iC2d1B9LkYXtHweoeksqD5i6y3GouEF | success | https://testnet.nearblocks.io/txns/FuQW3vWPqvZF6iC2d1B9LkYXtHweoeksqD5i6y3GouEF
+dao add_proposal -> carol | fairshare-d3a-relay.testnet -> fairshare-d3a-team.sputnikv2.testnet.add_proposal | DDqYBQ84z3k5VEJJ91bq4vaxgijp2VxNMUErbX7UbJX9 | success | https://testnet.nearblocks.io/txns/DDqYBQ84z3k5VEJJ91bq4vaxgijp2VxNMUErbX7UbJX9
+dao VoteApprove #6 by alice | fairshare-d3a-alice.testnet -> fairshare-d3a-team.sputnikv2.testnet.act_proposal | DWVSrVDW917bGxHfz5gxpyxWHjYBrDtGgwSaiN9Z8gWc | success | https://testnet.nearblocks.io/txns/DWVSrVDW917bGxHfz5gxpyxWHjYBrDtGgwSaiN9Z8gWc
+dao VoteApprove #6 by bob | fairshare-d3a-bob.testnet -> fairshare-d3a-team.sputnikv2.testnet.act_proposal | FUTeUC5Ysr7Y2geMPAP8FRzfUd2CoBqLf8dmH4P5A1eb | success | https://testnet.nearblocks.io/txns/FUTeUC5Ysr7Y2geMPAP8FRzfUd2CoBqLf8dmH4P5A1eb
+dao VoteApprove #6 by carol | fairshare-d3a-carol.testnet -> fairshare-d3a-team.sputnikv2.testnet.act_proposal | BgQyeZsFZMJnKJQcb6sAV4ywLwf2Chg7EYzxAAQ6re87 | success | https://testnet.nearblocks.io/txns/BgQyeZsFZMJnKJQcb6sAV4ywLwf2Chg7EYzxAAQ6re87
+dao add_proposal -> dave | fairshare-d3a-relay.testnet -> fairshare-d3a-team.sputnikv2.testnet.add_proposal | 21WK8vemDJh8EuE98na3s4vcSN6EvHtCHVbxJdeDkcUQ | success | https://testnet.nearblocks.io/txns/21WK8vemDJh8EuE98na3s4vcSN6EvHtCHVbxJdeDkcUQ
+dao VoteApprove #7 by alice | fairshare-d3a-alice.testnet -> fairshare-d3a-team.sputnikv2.testnet.act_proposal | 6fmxd7YeqwExhhswbCsYR7XpL1qEY2NN39WMr7s22duP | success | https://testnet.nearblocks.io/txns/6fmxd7YeqwExhhswbCsYR7XpL1qEY2NN39WMr7s22duP
+dao VoteApprove #7 by bob | fairshare-d3a-bob.testnet -> fairshare-d3a-team.sputnikv2.testnet.act_proposal | DJvJ4XkAV1r2JCXnFKFGWTydfYEUqz8jxASjYmiDfN9Y | success | https://testnet.nearblocks.io/txns/DJvJ4XkAV1r2JCXnFKFGWTydfYEUqz8jxASjYmiDfN9Y
+dao VoteApprove #7 by carol | fairshare-d3a-carol.testnet -> fairshare-d3a-team.sputnikv2.testnet.act_proposal | ANhLuv9TyB996G2Pj1L1rkWSr9sxJQbuSp93KtLBGGMV | success | https://testnet.nearblocks.io/txns/ANhLuv9TyB996G2Pj1L1rkWSr9sxJQbuSp93KtLBGGMV
+# balances (NEAR): before 10.586491 / 10.172917 / 10.133390 / 9.999386  after 10.939830 / 10.475550 / 10.372757 / 10.099386  vote gas paid 0.001065 / 0.001076 / 0.002519 / 0.000000
+# gained + vote gas = amount, to the yocto? yes, all four  DAO balance change -1.000000 NEAR (pot out, bonds back)
+# verify ok   round is final: 4 members, pot 1000000000000000000000000 yoctoNEAR
+# verify ok   every reveal matches its commit (sha256 recomputed): 3 of 4; bond forfeited by fairshare-d3a-dave.testnet
+# verify ok   split recomputed from the revealed ratings (bit for bit): 35.4405% / 30.3709% / 24.1886% / 10.0000%
+# verify ok   amounts recomputed and sum exactly to the pot: 0.354405 NEAR / 0.303709 NEAR / 0.241886 NEAR / 0.100000 NEAR
+# verify ok   split hash recomputed: 5ae305259eeca73e88a281035d4b711f7f361f61f764c49a72baaa3d99fbf112
+# verify ok   DAO proposals match the stored split: 4 Transfer proposals, 4 executed (Approved)
+# verify ok   the DAO runs the vendored official Sputnik v2 wasm (code hash): AA4nA45vauiac3jdVwJTzSdUP3oj2r1fDaPAb2mHdgcH
+# verify MATCH withhold   (npm run verify -- withhold)

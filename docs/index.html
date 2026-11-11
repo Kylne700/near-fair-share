@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:,">
+<title>Fair Share: split a pot so that lying about yourself cannot pay</title>
+<meta name="description" content="A team wins one prize and rates each other to split it. Fair Share is the impartial division rule on NEAR testnet: your own share never depends on what you write. Try it and check a real testnet round in your browser.">
+<style>
+  :root { --ink: #1b1f24; --muted: #4a525c; --line: #c9d1d9; --bg: #fafbfc; --card: #fff; --ok: #0a6b2e; --okbg: #e7f6ec; --bad: #a40e26; --badbg: #fde8ec; --link: #0b5cad; --accent: #0b5cad; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 1rem/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: var(--ink); background: var(--bg); }
+  main { max-width: 62rem; margin: 0 auto; padding: 1rem; }
+  h1 { font-size: 2rem; margin: 0.5rem 0 0.25rem; }
+  h2 { font-size: 1.4rem; margin: 2rem 0 0.5rem; border-top: 2px solid var(--line); padding-top: 1rem; }
+  h3 { font-size: 1.05rem; margin: 1rem 0 0.25rem; }
+  a { color: var(--link); }
+  a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible { outline: 3px solid #f5a623; outline-offset: 2px; }
+  .lead { font-size: 1.15rem; }
+  .big { font-weight: 700; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 0.75rem 1rem; margin: 0.75rem 0; }
+  .controls { display: flex; flex-wrap: wrap; gap: 0.75rem 1.5rem; align-items: end; }
+  label { display: block; }
+  fieldset { border: 1px solid var(--line); border-radius: 6px; margin: 0.75rem 0; padding: 0.5rem 0.75rem; }
+  legend { font-weight: 600; padding: 0 0.25rem; }
+  .raters label { display: inline-block; margin-right: 0.75rem; }
+  .slider { display: grid; grid-template-columns: minmax(6rem, 12rem) 1fr 3ch; gap: 0.5rem; align-items: center; margin: 0.25rem 0; }
+  .slider input { width: 100%; }
+  input[type=number], select { font: inherit; padding: 0.25rem 0.4rem; min-height: 2.25rem; }
+  button { font: inherit; padding: 0.4rem 0.9rem; min-height: 2.5rem; border: 1px solid var(--accent); background: var(--accent); color: #fff; border-radius: 6px; cursor: pointer; }
+  button[disabled] { opacity: 0.6; cursor: default; }
+  .scroll { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+  caption { text-align: left; font-weight: 600; padding: 0.25rem 0; }
+  th, td { border-bottom: 1px solid var(--line); padding: 0.3rem 0.5rem; text-align: right; vertical-align: top; }
+  th:first-child, td:first-child, td[colspan] { text-align: left; }
+  tr.top td { border-bottom: 0; padding-bottom: 0; }
+  tr.hot td { background: #fff7e0; }
+  .note { color: var(--muted); font-size: 0.92rem; }
+  .verdict { font-size: 1.25rem; font-weight: 700; padding: 0.4rem 0.75rem; border-radius: 6px; display: inline-block; }
+  .MATCH, .ok { color: var(--ok); } .MISMATCH, .FAIL { color: var(--bad); }
+  .verdict.MATCH { background: var(--okbg); } .verdict.MISMATCH, .verdict.ERROR { background: var(--badbg); color: var(--bad); }
+  .own { font-weight: 600; margin: 0.5rem 0; padding: 0.5rem 0.75rem; background: var(--okbg); border-radius: 6px; }
+  .own.changed { background: var(--badbg); }
+  code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 0.9em; overflow-wrap: anywhere; }
+  summary { cursor: pointer; margin: 0.4rem 0; }
+  ul { padding-left: 1.2rem; }
+  li { margin: 0.25rem 0; }
+  footer { margin: 2rem 0 1rem; color: var(--muted); font-size: 0.92rem; }
+  @media (max-width: 34rem) { main { padding: 0.75rem; } .card { padding: 0.5rem 0.6rem; } table { font-size: 0.85rem; } th, td { padding: 0.25rem 0.3rem; } h1 { font-size: 1.6rem; } .slider { grid-template-columns: 1fr 3ch; } .slider label { grid-column: 1 / -1; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>Fair Share</h1>
+  <p class="lead">A team wins one prize and has to split it. The usual way, everybody writes down a split and you average the answers, pays whoever lies about themselves: in a team of four with a true split of 40 / 30 / 20 / 10, D writes "100% me" and takes <span class="big">32.5% instead of 10%</span>. In Fair Share members rate only the <em>others</em>, and what you write never changes your own share: D keeps <span class="big">10.0%</span> whatever D writes.</p>
+  <p class="note">The rule is the impartial division of de Clippel, Moulin and Tideman (2008). The code is on <a href="https://github.com/Kylne700/near-fair-share">GitHub</a> (MIT). Everything below runs in your browser from the same files as the command line. NEAR testnet only: no wallet, no keys, no money.</p>
+
+  <h2 id="try-h">1. Try it</h2>
+  <p>Pot, team and ratings are yours to change. Everybody starts out honest (each rates the others by the true split) except one member, who lies. Switch the lie off or on, or drag the sliders.</p>
+  <div class="controls">
+    <label>Team size <select id="size"><option>4</option><option>5</option><option>6</option></select></label>
+    <label>Pot in dollars <input id="pot" type="number" min="1" max="100000000" step="1" value="10000"></label>
+  </div>
+  <fieldset class="raters"><legend>Whose ratings are you looking at?</legend><div id="raters"></div></fieldset>
+  <div class="card">
+    <label><input type="checkbox" id="lie"> <span id="lielabel"></span></label>
+    <p class="note" id="liehelp"></p>
+    <fieldset><legend id="slidersTitle"></legend><div id="sliders"></div></fieldset>
+  </div>
+  <div class="scroll"><table id="result"><caption>Who gets what</caption></table></div>
+  <p class="own" id="own" role="status" aria-live="polite"></p>
+  <p class="note">The "plain average" column: everybody states a split for the whole team, a lying member claims 100% for herself, the answers are averaged. A split needs at least 4 members: with 3 no impartial rule can hand out the whole pot (Proposition 1 of the paper).</p>
+
+  <h2 id="chain-h">2. Check the real testnet round</h2>
+  <p>This page reads the Fair Share contract on NEAR testnet through a public RPC node (view calls only, nothing is signed), recomputes every number with the same <code>fairShare</code>, <code>toAmounts</code> and <code>checkRound</code> as <code>npm run verify</code>, and says <span class="ok big">MATCH</span> or <span class="FAIL big">MISMATCH</span> for each member and for the whole round.</p>
+  <p><button id="recheck" type="button">Read the chain again</button> <span class="note" id="reading" role="status" aria-live="polite"></span></p>
+  <div id="rounds" aria-live="polite"></div>
+  <div id="setup"></div>
+
+  <h2 id="limits-h">3. What this does not do</h2>
+  <ul>
+    <li>It needs 4 or more members.</li>
+    <li>A liar cannot raise her own share, but she can move the others' shares. In the example above D's lie takes B from 30% to 17.5% and C from 20% to 13.7% while A gains.</li>
+    <li>It is not safe against teaming up. If A and D each rate the other 90% (B and C 5%, B and C truthful), A goes from 40% to 58.8%, D from 10% to 21.5%, while B falls to 10.7% and C to 9.0%. There is no protection against this yet.</li>
+    <li>Nobody checks that ratings are honest. The only guarantee is that your own rating cannot pay you.</li>
+    <li>On the chain, ratings are sealed only until the reveal; after that they are public in the transaction arguments.</li>
+    <li>A member who commits and never reveals counts as having rated everybody else equally and loses the bond. That cannot change the silent member's own share, but with several silent members it moves the others' shares, and the last member to reveal can pick between the committed and the neutral row after seeing the others (this still cannot change their own share).</li>
+    <li>The testnet round is a small demo: a 1 NEAR pot, 0.1 NEAR bond, four accounts of one operator. It shows that the flow works on a real network, not that anyone relies on it. The contract has had no separate review. Do not use it with real money.</li>
+  </ul>
+
+  <footer>
+    Built in the NEAR hackathon window with AI help (Claude, in Claude Code), directed by Kylne700. Source: <a href="https://github.com/Kylne700/near-fair-share">github.com/Kylne700/near-fair-share</a>. The scripts of this page (<a href="rule.js">rule.js</a>, <a href="payout.js">payout.js</a>, <a href="chain.js">chain.js</a>, <a href="rpc.js">rpc.js</a>, <a href="app.js">app.js</a>) are generated from <code>src/</code> and <code>web/</code> by <code>npm run build:web</code>; a test fails if they differ.
+  </footer>
+</main>
+<noscript><p>This page needs JavaScript: the numbers are computed in your browser.</p></noscript>
+<script type="module" src="app.js"></script>
+</body>
+</html>

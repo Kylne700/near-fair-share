@@ -1,8 +1,36 @@
 # Fair Share
 
-Split a pot between the people who earned it, so that lying about yourself cannot pay.
+Live demo: https://kylne700.github.io/near-fair-share/ (try the rule, and check a real NEAR testnet round in your browser; no wallet, no keys)
 
-DRAFT: the rule, the payout rounding, the NEAR contract and a real round on NEAR testnet (free test tokens). The UI comes next.
+A team wins one prize and has to split it. Asking everybody for a split and averaging the answers rewards whoever lies about themselves. Fair Share lets members rate only the OTHER members, using the impartial division rule of de Clippel, Moulin and Tideman (2008), so a member's own share never depends on what that member writes. A NEAR contract (commit, then reveal, so nobody can change a rating after seeing the others) stores the split, and the team's own Sputnik DAO pays it with one Transfer proposal per member. Anybody can recompute the whole round from the chain. Everything here ran on NEAR testnet only (free test tokens); the guarantee is per member, not against groups (see Known limits).
+
+## Reproduce in three commands
+
+Needs Node 22.18 or newer (written and tested on Node 24). Run `npm ci` once first.
+
+1. Test: `npm test`. Expected end of the output: `tests 38`, `pass 38`, `fail 0` (about 4 minutes; the first start downloads the NEAR sandbox binary).
+2. Local NEAR sandbox: `npm run sandbox`. Plays a consensual 40/30/20/10 round with a 10 NEAR pot, a round where D lies, the refused cheats and a round where D stays silent; last line `sandbox: all checks passed`.
+3. Verify the real testnet round from the chain: `npm run verify -- d-lies --rpc https://test.rpc.fastnear.com --contract fairshare-d3a-contract.testnet`. Expected: seven `ok` lines and the last line `MATCH d-lies`. The web page runs the same check in your browser.
+
+## Claims and where the evidence is
+
+| Claim | Evidence |
+| --- | --- |
+| A member's own report never changes that member's own share (bit for bit, 9,000 random teams) | `test/rule.test.ts`; the "own share" line of the live demo |
+| If all reports agree with one split, that split is paid exactly; shares sum to 1, none negative | `test/rule.test.ts` |
+| Payout amounts are integers that sum exactly to the pot | `test/payout.test.ts` |
+| The contract computes the same shares as `src/rule.ts`, bit for bit | `npm run test:contract` (`contract/tests/parity.rs`, 9,000 profiles); `verify` on testnet recomputes the stored split |
+| A reveal that does not match its commit is refused; nothing opens early; a silent member cannot stop the round | `test/chain.test.ts` (7 tests against a local NEAR node) |
+| `verify` reports MISMATCH for tampered data | `test/verify.test.ts` |
+| A real round on NEAR testnet: commits, reveals, stored split, 4 DAO payouts per round, balances checked to the yocto | `evidence/testnet/setup.txt`, `d-lies.txt`, `withhold.txt` (every transaction with hash and link); `links.txt` (53 of 53 found by the nearblocks testnet API with status success) |
+| The testnet DAO runs the official Sputnik v2 code | `verify` check "code hash"; `vendor/README.md` |
+| The web page runs this repo's own code | `test/web.test.ts`: `docs/` is exactly what `npm run build:web` makes from `src/` and `web/`, and the page's SHA-256 equals `node:crypto` |
+
+## What was built for the NEAR hackathon (window rules, Q-002 and Q-003)
+
+All code in this repo is new since 2026-11-11: the first commit is `cb2be788f7aa2d5a7fe59cfae33a83cfe5282ef2` (2026-11-11 13:19:52 UTC) and there is no older code. The exceptions are third party and are not claimed as ours: `vendor/sputnikdao2.wasm` (the official Sputnik DAO v2 binary, unmodified, the exact bytes the testnet factory `sputnikv2.testnet` deploys) and the npm dev dependencies listed under "Built with".
+
+The NEAR integration, all built in the window: the Rust contract `contract/` (commit-reveal, bond, split, hash), the Sputnik DAO payout flow, the local sandbox tests, `npm run verify`, the real testnet round, and the web page that reads the contract through public testnet RPC view calls.
 
 ## The problem
 
@@ -19,10 +47,10 @@ Members rate only the OTHER members (positive shares, normalised to sum 1). The 
 - Exact: the shares always sum to 1, none is negative.
 - `src/payout.ts` turns the shares into integer amounts (bigint, for yoctoNEAR) that sum exactly to the pot (shares rounded to a 10^-12 grid, largest-remainder rounding, ties by member order; 40/30/20/10 of 10 NEAR is exactly 4/3/2/1 NEAR).
 
-## Try it
+## More commands
 
 1. Install: `npm ci` (needs Node 22.18 or newer; written and tested on Node 24, which runs the TypeScript files directly). `npm audit` then reports 15 findings (12 low, 2 high, 1 critical), all in the dev-only sandbox tools (`near-workspaces`, `near-sandbox` with an old `tar`, `near-api-js`); the project itself has no runtime dependencies.
-2. Test: `npm test` (about 4 minutes: 15 rule, payout and demo tests, 13 tamper-detection tests, 7 tests against a local NEAR node). Expected end of the output: `tests 35`, `pass 35`, `fail 0`.
+2. Test: `npm test` (about 4 minutes: 15 rule, payout and demo tests, 3 web tests, 13 tamper-detection tests, 7 tests against a local NEAR node). Expected end of the output: `tests 38`, `pass 38`, `fail 0`.
 3. Demo: `npm run demo`. Expected (D keeps 10.0% under Fair Share, whatever D writes):
 
 ```
@@ -96,10 +124,12 @@ Everything below is on NEAR testnet (contract `fairshare-d3a-contract.testnet`, 
 
 ## Built with
 
+- The web page (`web/`): plain TypeScript, no framework. `npm run build:web` strips the types from `src/rule.ts`, `src/payout.ts`, `src/chain.ts`, `src/rpc.ts` and `web/app.ts` and writes them to `docs/` (served by GitHub Pages); `web/crypto-shim.ts` is a small SHA-256 used in place of `node:crypto`. The page only makes JSON-RPC view calls (no wallet, no signing, no keys, no backend).
 - TypeScript on Node (native type stripping, `node:test`); Rust with `near-sdk` for the contract; `near-workspaces` for the local sandbox
 - `fast-check` (property tests), `typescript` and `@types/node` (type check only)
 - The rule is from de Clippel, Moulin and Tideman (2008). The formulas were checked against the authors' working-paper PDF, not the typeset journal version.
-- The code was written with AI help (Claude, in Claude Code), directed by Kylne700.
+- AI disclosure: the code was written with AI help (Claude, in Claude Code), directed by Kylne700.
+- The contract and the rule have had no separate review. Do not use them with real money.
 
 ## License
 

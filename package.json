@@ -13,6 +13,7 @@
     "demo": "node src/demo.ts",
     "check": "tsc --noEmit",
     "build:contract": "node scripts/build-contract.ts",
+    "build:web": "node scripts/build-web.ts",
     "test:contract": "node scripts/test-contract.ts",
     "sandbox": "node sandbox/run.ts",
     "verify": "node src/verify-cli.ts",
