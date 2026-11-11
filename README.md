@@ -22,7 +22,7 @@ Members rate only the OTHER members (positive shares, normalised to sum 1). The 
 ## Try it
 
 1. Install: `npm ci` (needs Node 22.18 or newer; written and tested on Node 24, which runs the TypeScript files directly). See: it ends with `found 0 vulnerabilities`.
-2. Test: `npm test`. Expected end of the output: `tests 13`, `pass 13`, `fail 0`.
+2. Test: `npm test` (about 3 minutes: 13 rule and payout tests, 10 tamper-detection tests, 7 tests against a local NEAR node). Expected end of the output: `tests 30`, `pass 30`, `fail 0`.
 3. Demo: `npm run demo`. Expected (D keeps 10.0% under Fair Share, whatever D writes):
 
 ```
@@ -54,7 +54,7 @@ A spreadsheet or a form cannot stop a member from changing a rating after lookin
 Try it (needs no account and no network; the first start downloads the NEAR sandbox binary):
 
 - `npm run sandbox` plays a consensual 40/30/20/10 round with a 10 NEAR pot, a round where D lies, and the refused cheats, printing every transaction. `npm run sandbox -- --keep` leaves the node up so `npm run verify -- consensual` can be run in a second terminal.
-- `npm test` also runs the sandbox tests (about 3 minutes). `npm run test:contract` runs the Rust tests and the 9,000-profile parity check (needs rustc 1.86). `npm run build:contract` rebuilds `contract/fair_share.wasm` (the committed file is what the tests use).
+- `npm test` also runs the sandbox tests. `npm run test:contract` runs the Rust tests and the 9,000-profile parity check (needs rustc 1.86). `npm run build:contract` rebuilds `contract/fair_share.wasm` (the committed file is what the tests use).
 - `npm run testnet:deploy` is prepared but refuses to run without `NEAR_TESTNET_OK=1`; it has not been run.
 
 Honest limits of the on-chain part:
