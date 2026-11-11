@@ -1,0 +1,21 @@
+{
+  "name": "near-fair-share",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Impartial division of a pot (de Clippel, Moulin & Tideman 2008): members rate only the others, so lying about yourself cannot pay.",
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "test": "node --test \"test/*.test.ts\"",
+    "demo": "node src/demo.ts",
+    "check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "fast-check": "^4.10.2",
+    "typescript": "^7.0.2"
+  }
+}
